@@ -1,0 +1,139 @@
+\documentclass[seminar]{report} \usepackage{longtable} \usepackage{tabu}
+\usepackage{pifont} \usepackage{natbib} \usepackage{graphicx}
+\usepackage{caption} \usepackage{subcaption}
+
+% used for \textquotesingle
+\usepackage{textcomp}
+
+% used for degree
+\usepackage{gensymb} \renewcommand\thesection{\arabic{section}}
+\renewcommand{\bibname}{References}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{GPS Analysis and Design Improvements \\[0.1in] in ``SafeStreet" }}\\[0.4in]
+  {\large \textbf{M.Tech Thesis Report}}\\[0.2in]
+  {\large \textit{Submitted in partial fulfillment of the requirements}\\
+    for the degree of}\\[0.2in]
+  {\large \textbf{Master of Technology\\
+      in\\
+      Computer Science and Engineering}}\\[0.2in]
+  \large by\\[0.1in]
+  {\Large Vikrant\\Roll No.: 153050031}\\[0.1in]
+
+  \Large \textit{under the guidance of}\\[0.1in]
+  {\Large Prof. Bhaskaran Raman}\\[0.3in]
+  \begin{figure}[h]
+    \centering
+    \includegraphics[width=2in]{iitb-black}
+  \end{figure}
+
+  {\Large Department of Computer Science and Engineering\\[0.1in]
+    Indian Institute of Technology Bombay\\[0.1in]
+    October, 2016 }
+\end{center}
+\pagebreak
+
+\begin{abstract}
+\end{abstract}
+
+\pagenumbering{roman}
+\tableofcontents
+
+
+\setcounter{page}{1} \pagenumbering{arabic}
+
+\include{introduction/introduction}
+% \include{analysis/analysis}
+
+\section{GPS Analysis}
+\subsection{How GPS works ?}
+Before we dig deep into the GPS analysis lets first understand how GPS works?
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=2.5in]{analysis/satellite}
+  \caption{A cell phone receiving signals from 4 satellites}
+  \label{satellite}
+\end{figure}
+As we know that GPS works on the principle of trilateration which means that if
+we want to find out the location of a point in space and we know
+it\textquotesingle s distance from three points then we can uniquely identify
+this point. Yes you guessed it right! it is the point of intersection of three
+spheres with the radius equal to the distance from the point in question to
+their respective centers.
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=2.5in]{analysis/trilateration}
+  \caption{Trilateration}
+  \label{trilateration}
+\end{figure}
+
+GPS receivers uses accurate time difference to calculate it\textquotesingle s
+distance from satellites, which is equal to the time of arrival of GPS signal
+minus the signal sending time. But it is not that simple to get the time in
+nonoseconds range with our cell phones as it doesn't have atomic clock like
+satellites have. Just to get an idea of why we need nanosecond accuracy in time
+difference, an error of just 30 nanoseconds in time can lead to an error of 9
+meters on Earth which is large enough to changed your pothole location from one
+lane to another. To solve this need of high accuracy clocks in our cell phones,
+cell phones uses 4 satellites to determine the exact time.
+
+Now we have the basic understanding of GPS, lets try to understand some of the
+GPS terminologies that we have used in this report.
+
+% In this report we have done the analysis of GPS data obtained in our data
+% collection phase.
+
+\subsection{GPS Terminologies}
+Lets first learn some of complex terminologies related to GPS.
+% First is GPS latitude, it is same as geographic latitude that we already know
+% about. Just to refresh our memory, latitude of a point on Earth's surface is
+% the angle formed by the equitorial line passing through the center of Earth
+% and the point joining the center of Earth. Latitude of north pole is 90\degree
+% N and south pole is 90\degree S which is 90 and -90 repectively in decimal
+% format.
+
+% Second is GPS longitude, it is same as geographic longitude. Longitude of a
+% point on Earth's surface is the angle formed by the plane passing through the
+% Prime Meridian (which is Greenwich, England) containing North and South poles
+% and the plane containing the point which also contains North and South poles.
+% It is 0\degree for Greenwich, England and 0 to +180\degree for east side
+% points and 0 to -180\degree for west side points.
+
+\begin{enumerate}
+\item GPS \textbf{accuracy}, This is a number that we get from our GPS device
+  and it has a unit of meters. This is an important attribute for GPS location
+  % and we will spend most of our time around it.
+  The definition of accuracy according to \textit{developer.android.com} website
+  is ``the radius of \textbf{68\%} confidence''. In other words, if you draw a
+  circle centered at this location's latitude and longitude with a radius equal
+  to the accuracy in meters, then there is a 68\% probability that the true
+  location is inside the circle.
+
+\item Geometric Dilution of precision (\textbf{GDOP}). It is a dimension less
+  attribute and it is little bit difficult to understand this attribute. But in
+  general it shows the effect of position of satellites in orbit on the GPS
+  accuracy number that we get. A general rule of thumb is that a lower values
+  (\textless 2)of dops gives high accuracy point. There are 3 DOP values that we
+  get from cell phones:
+  \begin{enumerate}
+  \item HDOP - horizontal dilution of precision
+  \item VDOP - vertical dilution of precision
+  \item PDOP - position (3D) dilution of precision
+  \end{enumerate}
+
+  HDOP is related to the horizontal accuracy which is our lat-longs and VDOP is
+  related to the accuracy of altitude. 
+
+  From our GPS analysis we found that lower values of DOPs results in more
+  accurate location point.
+
+\end{enumerate}
+
+\include{newresearch/newresearch}
+\include{conclusion/conclusion}
+
+\end{document}
+
