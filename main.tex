@@ -1,39 +1,68 @@
-\documentclass[seminar]{report} \usepackage{longtable} \usepackage{tabu}
-\usepackage{pifont} \usepackage{natbib} \usepackage{graphicx}
-\usepackage{caption} \usepackage{subcaption}
-
+\documentclass[12pt]{report}
+\usepackage{longtable}
+\usepackage{tabu}
+% \usepackage{pifont}
+\usepackage{natbib}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{subcaption}
 % used for \textquotesingle
 \usepackage{textcomp}
 
 % used for degree
-\usepackage{gensymb} \renewcommand\thesection{\arabic{section}}
-\renewcommand{\bibname}{References}
+\usepackage{gensymb}
+% \renewcommand\thesection{\arabic{section}}
+% \renewcommand{\bibname}{References}
 
 \begin{document}
 
 \begin{center}
-  {\LARGE \textbf{GPS Analysis and Design Improvements \\[0.1in] in ``SafeStreet" }}\\[0.4in]
-  {\large \textbf{M.Tech Thesis Report}}\\[0.2in]
+  {\LARGE \textbf{GPS Analysis and Design Improvements in ``SafeStreet" }}\\[0.3in]
+  {\large \textbf{M.Tech Thesis Report}}\\[0.1in]
   {\large \textit{Submitted in partial fulfillment of the requirements}\\
-    for the degree of}\\[0.2in]
+    for the degree of}\\[0.1in]
   {\large \textbf{Master of Technology\\
       in\\
       Computer Science and Engineering}}\\[0.2in]
   \large by\\[0.1in]
-  {\Large Vikrant\\Roll No.: 153050031}\\[0.1in]
+  {\Large Vikrant\\Roll No. 153050031}\\[0.1in]
 
   \Large \textit{under the guidance of}\\[0.1in]
-  {\Large Prof. Bhaskaran Raman}\\[0.3in]
+  {\Large Prof. Bhaskaran Raman}\\[0.08in]
   \begin{figure}[h]
     \centering
     \includegraphics[width=2in]{iitb-black}
   \end{figure}
 
-  {\Large Department of Computer Science and Engineering\\[0.1in]
-    Indian Institute of Technology Bombay\\[0.1in]
+  {\Large Department of Computer Science and Engineering\\[0.08in]
+    Indian Institute of Technology Bombay\\[0.08in]
     October, 2016 }
 \end{center}
 \pagebreak
+
+%{{{ ack
+% Page number at bottom
+\thispagestyle{plain}
+% Title
+\begin{center}{\huge{\textsc{Acknowledgements}} \par}\end{center}
+\vspace*{15px}
+% Write acknowledgement here
+\noindent
+
+I would like to thank my guide, Prof. Bhaskaran Raman. I would like to thank
+Nivia Jatain for helping me in data collection and proofreading my report.
+
+% I thank Swaresh for giving his mobile phones.
+
+
+\vspace*{15px}
+\begin{flushright}
+{\textbf{Vikrant}}
+\end{flushright}
+%}}}
 
 \begin{abstract}
 \end{abstract}
@@ -44,11 +73,20 @@
 
 \setcounter{page}{1} \pagenumbering{arabic}
 
-\include{introduction/introduction}
+\chapter{Introduction}
+\label{sec:introduction_sec}
+
+\chapter{Motivation}
+\label{sec:motivation_sec}
+
+\chapter{Acknowledgement}
+\label{sec:acknowledgement_sec}
+
+
 % \include{analysis/analysis}
 
-\section{GPS Analysis}
-\subsection{How GPS works ?}
+\chapter{GPS Analysis}
+\section{How GPS works ?}
 Before we dig deep into the GPS analysis lets first understand how GPS works?
 
 \begin{figure}[h]
@@ -83,10 +121,28 @@ cell phones uses 4 satellites to determine the exact time.
 Now we have the basic understanding of GPS, lets try to understand some of the
 GPS terminologies that we have used in this report.
 
+
 % In this report we have done the analysis of GPS data obtained in our data
 % collection phase.
 
-\subsection{GPS Terminologies}
+ % Before I answer this question lets first see the experimental setup.
+ % Vehicles which I used in my experiments are Suzuki Access 125 scooter and my
+ % bicycle, Autorikshaw , Maruti SX4 (car), IITB TumTum and Mumbai roadways
+ % buses and Mumbai local (2nd class).
+
+ % Phones used in our experiments are Oneplus One, Sumsung Grand Max, Sumsung
+ % Grand Prime, Samsung Galaxy S3, Samsung S3 Neo, LG Nexus 4, LG Nexus 5X, LG
+ % Nexus 5, Moto-E and HTC Desire 626g+.
+
+ % The route that I have travelled on for most number of times are
+
+ % 1. Hostel 14 to Kresit and return
+
+ % 2. Kresit to Ghatkopar RCity Mall and return
+
+ % 3. Kresit to Kasarvadavali (Thane west) and return
+
+\section{GPS Terminologies}
 Lets first learn some of complex terminologies related to GPS.
 % First is GPS latitude, it is same as geographic latitude that we already know
 % about. Just to refresh our memory, latitude of a point on Earth's surface is
@@ -98,6 +154,7 @@ Lets first learn some of complex terminologies related to GPS.
 % Second is GPS longitude, it is same as geographic longitude. Longitude of a
 % point on Earth's surface is the angle formed by the plane passing through the
 % Prime Meridian (which is Greenwich, England) containing North and South poles
+
 % and the plane containing the point which also contains North and South poles.
 % It is 0\degree for Greenwich, England and 0 to +180\degree for east side
 % points and 0 to -180\degree for west side points.
@@ -116,7 +173,7 @@ Lets first learn some of complex terminologies related to GPS.
   attribute and it is little bit difficult to understand this attribute. But in
   general it shows the effect of position of satellites in orbit on the GPS
   accuracy number that we get. A general rule of thumb is that a lower values
-  (\textless 2)of dops gives high accuracy point. There are 3 DOP values that we
+  (\textless \ 2)of dops gives high accuracy point. There are 3 DOP values that we
   get from cell phones:
   \begin{enumerate}
   \item HDOP - horizontal dilution of precision
@@ -125,15 +182,270 @@ Lets first learn some of complex terminologies related to GPS.
   \end{enumerate}
 
   HDOP is related to the horizontal accuracy which is our lat-longs and VDOP is
-  related to the accuracy of altitude. 
+  related to the accuracy of altitude. For our case we are not concerned about
+  the altitude accuracy because we show pothole location on Google maps which is
+  flat.
 
   From our GPS analysis we found that lower values of DOPs results in more
   accurate location point.
 
 \end{enumerate}
 
-\include{newresearch/newresearch}
-\include{conclusion/conclusion}
+\section{GPS Related Questions and Answers}
+I have tried to answer some of the GPS related questions with the experiments
+that I have performed. The answers for these questions helped us in developing a
+more accurate pothole detection app which is our ultimate goal. These questions
+are as follows.
+\begin{enumerate}
+\item \label{q1} What is the percentage GPS outage when travelling in different vehicles types
+  (car, bus, scooter/cycle and train)?
+\item What is percentage GPS Outage when operating phone on different GPS settings?  
+These settings are
+  \begin{enumerate}
+  \item \textbf{GPS only mode} : meaning our GPS logging app is configured to
+    not receive location updates from cell towers and internet connection is
+    turned off.
+  \item \textbf{GPS with internet} : same settings as point (a) but internet connnection is
+    turned on.
+  \item  \textbf{GPS with network and internet} : same settings as point (b) but
+    with logging app configured to receive location updates from cell towers.
+  \end{enumerate}
+  I haven\textquotesingle{}t included network only mode setting because the
+  accuracy of received location is very low (can be in range of few 100s of
+  meters) and this is not acceptable for our application.
+\item What accuracy numbers we get when we operate android phones on different
+ GPS settings ? 
+\item How DOP and accuracy number are related?
+\item What is the correlation between the number of satellites and accuracy
+  number?
+\item Is there any effect of vehicle speed on accuracy?
+
+  We also tried to find out the effect of weather condition (cloudy vs
+  non-cloudy) onGPSaccuracy but we were not able to collect sufficient data
+  for non-cloudy weather as it is rare in mumbai to get clear sky in mansoon
+  season.
+
+\end{enumerate}
+
+Lets answer these questions one by one.
+
+\section{GPS outage comparison for different vehicle type}
+\label{sec:gps_outage}
+Let us first define what do we mean by GPS outage ?
+\begin{equation}\label{gps_outage_eqn}
+  \%GPS\  outage = 100 \  - \  \frac{number\  of\  gps\  location\  updates\  received}{total\  trip\  time\  in\  seconds}\  *\  100
+\end{equation}
+
+\noindent
+\textit{total trip time} is measured from the time we get the first GPS fix to
+the time at which we stop our GPS logging application. Equation
+\ref{gps_outage_eqn} is valid only when we set phone to receive location update
+after every 1 second. If the location update frequency is 1 after every $x$
+seconds then we should divide the total trip time by $x$.
+\\
+
+Now lets answer our first question, what is the percentage GPS outage when
+travelling in different vehicles types (car, bus, scooter/cycle and train)?
+
+Answer: We use table \ref{gps_outage_table} to answer this question.
+% GPS \% outage for trains and buses is found to be larger as compared to scooter, auto
+% and buses
+One major observation that we can draw by looking at table
+\ref{gps_outage_table} is that cell phones struggles to get a GPS fix in crowed
+vehicles i.e. bus and train as compare to less crowed vehicles like car, auto
+and scooter. On an average the GPS outage in buses and trains are found to be
+around 33\% and 67\% where as it is around 6-23\% in scooter, auto and car.
+
+\section{GPS outage comparison for different GPS settings}
+
+Question: What is percentage GPS Outage when operating phone on different GPS
+settings?
+
+Answer: Unfortunately we couldn\textquotesingle{}t find any correlation between
+GPS setting and GPS outage. As we can see from table \ref{gps_accuracy_table}
+that if we use GPS in combination with internet then GPS outage decreases for
+auto and train but increase for scooter and car. Altough there can be many
+reasons for this behaviour. Few of them may be are:
+
+1. \textbf{Different phone hardware}: We have observed that some phones
+consistenly have higher GPS outage compared to other phones which is an
+indication that GPS accuracy is affected by phone\textquotesingle{}s hardware.
+Just to give you an visual feel for the hardware dependence see figure
+\ref{gps_outage_fig} which shows that in an identical environment different
+phones perform differently. If you look carefully, figure \ref{gps_outage_gp}
+shows that Samsung Grand Prime doesn\textquotesingle{}t get any location update
+in a run of 1.06 km.
+
+\begin{figure*}[t!]
+  \centering
+  \begin{subfigure}[t]{0.33\textwidth}
+    \centering
+    \includegraphics[width=1.3in]{images/gps_outage_thane_west_to_thane_stn_nexus4}
+    \caption{LG Nexus 4}
+    \label{gps_outage_nexus4}
+  \end{subfigure}%
+  ~
+  \begin{subfigure}[t]{0.33\textwidth}
+    \centering
+    \includegraphics[width=1.3in]{images/gps_outage_grandprime_kasarvadli_to_thane_station_bus}
+    \caption{Samsung Grandprime}
+    \label{gps_outage_gp}
+  \end{subfigure}%
+  ~
+  \begin{subfigure}[t]{0.33\textwidth}
+    \centering
+    \includegraphics[width=1.3in]{images/gps_outage_oneplusone_kasarvadli_to_thane_station_bus}
+    \caption{Oneplus One}
+    \label{gps_outage_oneplusone}
+  \end{subfigure}
+  \caption{Showing GPS outage with the help of marking GPS location on Google
+    maps for different phones while travelling in bus from Kasarvadavali to
+    Thane station}
+  \label{gps_outage_fig}
+\end{figure*}
+
+2. \textbf{Different travel route}: Trips done on cycle, scooter and auto are
+all within IIT campus whereas trips done on car, bus and train are outside of
+IIT campus. It is observed that we get better average accuracy numbers
+(\textless \ 5 meters) outside campus as compared to inside IIT campus for the
+same device. This behaviour can be because of large number of tree inside IIT
+campus which cause hiderance for GPS signal.
+
+% phone hardware is one of factor affecting GPS accuracy.
+
+
+ \begin{table}[h!]
+   \centering
+   \caption{Percentage GPS outage for different vehicle type and GPS settings}
+   \label{gps_outage_table}
+   \begin{tabular}{|m{.9in}|c|c|c|l|}
+     \hline
+                                & gps only & gps+internet & gps+network+internet & average of all GPS settings \\ \hline
+     cycle/scooter              & 5.44     & 7.98         & 56.59                & 23.33                       \\
+     auto                       & 14.62    & 0.00         & 3.03                 & 5.88                        \\
+     car                        & 2.43     & no data      & 33.08                & 17.76                       \\
+     bus                        & 32.75    & no data      & no data              & 32.75                       \\
+     train                      & 91.03    & no data      & 43.79                & 67.41                       \\ \hline
+average across all vehicle type & 29.26    & 3.99         & 34.12                & 
+     \\ \hline 
+   \end{tabular}
+ \end{table}
+
+ \section{Comparison of GPS accuracy number for different vehicle types and GPS
+   settings}
+
+ \begin{table}
+
+   \centering
+   \caption{Median accuracy (in meters) for different vehicle types and GPS
+     settings}
+   \begin{tabular}{|l|c|c|c|}
+     \hline
+     vehicle type$\backslash$ gps settings & GPS only & GPS+internet & GPS+internet+network \\ \hline
+     scooter/cycle                         & 12.3     & no data      & 9.9                  \\ \hline
+     auto                                  & 15.9     & 5.0          & 6.2                  \\ \hline
+     car                                   & 13.6     & no data      & 165.4                \\ \hline
+     bus                                   & 21.6     & 17.0         & 25.4                 \\ \hline
+     train                                 & 24.7     & no data      & 12.0                 \\ \hline
+     average across all vehicles           & 17.6     & 11.0         & 45.8                 \\ \hline
+   \end{tabular}
+
+ \end{table}
+
+\begin{table}[]
+  \centering
+  \caption{My caption}
+  \label{my-label}
+  \begin{tabular}{llll}
+    vehicle type/gps settings   & gps only & gps+internet & gps+internet+network \\
+    scooter/cycle               & 13.8     & no data      & 49.4                 \\
+    auto                        & 16.8     & 5.3          & 20.8                 \\
+    car                         & 14.0     & no data      & 281.4                \\
+    bus                         & 23.3     & 23.6         & 39.5                 \\
+    train                       & 37.1     & no data      & 186.8                \\
+    average across all vehicles & 21.0     & 14.4         & 115.6               
+  \end{tabular}
+\end{table}
+
+ 
+ \begin{table}[h!]
+   \centering
+   \caption{Percentage GPS accuracy less than 10 meters}
+   \label{gps_accuracy_table}
+   \begin{tabular}{l|lll}
+     vehicle type/gps settings   & gps only & gps+internet                  &
+                                                                              gps+internet+network \\ \hline
+     scooter/cycle               & 40.6 \%   & not sufficient data           & 32.8 \%                \\
+     auto                        & 66.4 \%   & 94.1 \%                         & 85.3 \%                \\
+     car                         & 68.1 \%   & not sufficient data  & 16.3 \%                \\
+     bus                         & 39.4 \%   & 17.3  \%                        & 6.8  \%                \\
+     train                       & 20.5 \%   & not sufficient data           & 34.5 \%                \\
+     average across all vehicles & 47.0 \%   & 55.7   \%                       & 35.1 \%               
+   \end{tabular}
+ \end{table}
+ One conclusion that we can draw from table \ref{gps_outage_table} is that GPS
+ only mode give better accuracy on an average compared to gps+internet+network
+ mode and hence it will be a good strategy to ignore location updates from cell
+ towers. Only reasons for using network as a source of location update is to get
+ faster location update which comes at the cost of low accuracy.
+
+
+ Question: What accuracy numbers we get when we operate android phones on
+ different GPS settings ? Answer:
+
+
+\chapter{New changes in SafeStreet}
+
+\section{App Side}
+\label{sec:app_side}
+
+Preventing upload of tempered files.
+
+to prevent tempering with our log files, we have calculated the md5 checksum of
+our log files + user's emailid. The reason for including some additional usually
+called as ``salt'' is to prevent the user from computing the our secret checksum
+and send it with the post request, if some malicious user tried to upload
+tempered log files then we can simply discard those files whose md5 checksum
+doesn't match with what checksum we have calculated at the time of log
+generation. This scheme is better compared to scheme of sending encrypted files
+and then decrypting it on server side because encryption and decryption
+operation are slower than computing md5 hash.
+
+\section{Server Side}
+\label{sec:server_side}
+
+\section{Design comparison of SafeStreet versions (App side)}
+
+\section{Design comparison of SafeStreet versions (Server side)}
+
+\section{Performance comparison of SafeStreet versions}
+
+\chapter{Challenges}
+
+\chapter{Future Work}
+
+
+
+
+
+
+
+\chapter{Conclusion}
+The implication of all this gps analysis is two fold first is now we know that
+how different phones behave for different gps settings. With the help of GPS
+accuracy analysis we found that running making application receive location
+update from network is not required for our application. This made us to take
+the decison of changing location listener from Google Fused API to Android
+location listener which give us control of not receiving location updates from
+network.
 
 \end{document}
-
+#+ORGTBL: SEND median_accuracy_table orgtbl-to-latex :splice nil :skip 0
+| vehicle type\ gps settings  | gpsonly | gps+internet | gps+internet+network |
+|-----------------------------+---------+--------------+----------------------|
+| scooter/cycle               |    12.3 | no data      |                  9.9 |
+| auto                        |    15.9 | 5.0          |                  6.2 |
+| car                         |    13.6 | no data      |                165.4 |
+| bus                         |    21.6 | 17.0         |                 25.4 |
+| train                       |    24.7 | no data      |                 12.0 |
+| average across all vehicles |    17.6 | 11.0         |                 45.8 |
