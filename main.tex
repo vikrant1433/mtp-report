@@ -5,22 +5,26 @@
 \usepackage{natbib}
 \usepackage{graphicx}
 \usepackage{caption}
-\usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{amsmath}
 \usepackage{subcaption}
+\usepackage{url}
+\usepackage{hyperref}
 % used for \textquotesingle
 \usepackage{textcomp}
-
-% used for degree
+% for subfigure
+% \usepackage[caption=false]{subfig}
+% used for degree symbol
 \usepackage{gensymb}
 % \renewcommand\thesection{\arabic{section}}
 % \renewcommand{\bibname}{References}
 
+\usepackage[english]{babel}
+
 \begin{document}
 
 \begin{center}
-  {\LARGE \textbf{GPS Analysis and Design Improvements in ``SafeStreet" }}\\[0.3in]
+  {\LARGE \textbf{GPS analysis for SafeStreet}}\\[0.3in]
   {\large \textbf{M.Tech Thesis Report}}\\[0.1in]
   {\large \textit{Submitted in partial fulfillment of the requirements}\\
     for the degree of}\\[0.1in]
@@ -43,8 +47,40 @@
 \end{center}
 \pagebreak
 
-%{{{ ack
-% Page number at bottom
+\begin{abstract}
+  SafeStreet is a pothole detection Android app \cite[]{safestreet_app}
+  developed in IIT Bombay with a motivation to help the government know about the
+  present road condition. Knowing the location of potholes can help the municipal
+  corporation to repair them faster thereby increasing the vehicle's life and
+  making the rider's journey pleasant.
+
+  % As of now it is in priliminary stage of development.
+  SafeStreet uses 3-axis accelerometer to detect the potholes and GPS to report
+  it's location. SafeStreet version1 developed by Anupreet and Bhushan has been
+  tested by 10 odd taxi drivers with a total distance of around 5000 Km,
+  reporting around 10000 potholes/bumps \cite{anupreet} \cite[]{bhushan}. After
+  analyzing the data collected by SafeStreet v1 \cite{anupreet}, I found that it has
+  56772 pothole reports with an average distance error of 4.3 meters across all
+  vehicle types from the nearest road and 3956 reports have distance from them
+  nearest road greater than 10 meters with a maximum error distance of
+  \textbf{600 meters}. The reason for this large error distance is location
+  updates received from cellular towers which can have accuracy of 100's of
+  meters, if we stop listening location from cellular network then this 600
+  meters of distance error can be brought down to 38.6 meters
+  
+  This report presents the GPS outage and accuracy analysis which has helped in
+  answering the question as to why there is so much distance error with GPS. GPS
+  accuracy analysis has been done for GPS only, A-GPS (Assisted) and A-GPS with
+  network settings with different vehicle types. Based on the results from GPS
+  analysis I have changed the location listener API from Google
+  \cite[]{google_location_api} to Android \cite[]{android_location_api}. Apart
+  from this, design changes has been made to make the SafeStreet more robust
+  and scalable.
+
+
+\end{abstract}
+
+% {{{ ack Page number at bottom
 \thispagestyle{plain}
 % Title
 \begin{center}{\huge{\textsc{Acknowledgements}} \par}\end{center}
@@ -52,296 +88,487 @@
 % Write acknowledgement here
 \noindent
 
-I would like to thank my guide, Prof. Bhaskaran Raman. I would like to thank
-Nivia Jatain for helping me in data collection and proofreading my report.
+I would like to thank my guide, Prof. Bhaskaran Raman for his constant guidance.
+His plan of conducting two meetings in a week proved to be an effective idea
+which helped in quickly correcting mistakes and minimized the effort in the wrong
+direction. I thank him for giving me his scooter \textit{n} number of times at
+any time in day or night.
 
-% I thank Swaresh for giving his mobile phones.
+I would also like to thank Nivia Jatain for helping me in data collection
+process. She also helped me in proofreading this report.
+
+I would also like to thank Deepthi for helping me in carrying out the project
+smoothly.
 
 
 \vspace*{15px}
-\begin{flushright}
-{\textbf{Vikrant}}
+\begin{flushright} {\textbf{Vikrant}}
 \end{flushright}
-%}}}
+% }}}
 
-\begin{abstract}
-\end{abstract}
 
 \pagenumbering{roman}
 \tableofcontents
-
 
 \setcounter{page}{1} \pagenumbering{arabic}
 
 \chapter{Introduction}
 \label{sec:introduction_sec}
+% DONE: What is the setting of the problem? DONE: Why is the problem important
+% to solve? This is the motivation.
+India had a road network of 46.9 lakh kilometers (Approx) in 2011 \cite[]{nhdp},
+which is $2^{nd}$ \cite[]{cia}largest road network in the world. For road maintenance
+$13^{th}$ Finance Commission has granted Rs 199,300 million \cite[]{rural_roads}
+over a period of 4 years (2011-2015). Knowing the location of potholes helps
+municipal corporation to know which road needs fixing thereby making the
+road repair process faster. SafeStreet is a crowd source solution to address
+this problem by marking the location of potholes accurately on the Google maps.
 
-\chapter{Motivation}
-\label{sec:motivation_sec}
+What is SafeStreet ? SafeStreet is an automated pothole detection and reporting
+Android application\cite[]{safestreet_app}.
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=2in]{images/phone}
+  \caption{Showing phone's positive x,y,z coordinate axes. positive z-axis is in
+    the direction of phone's screen facing the sky. }
+  \label{phone_axes}
+\end{figure}
 
-\chapter{Acknowledgement}
-\label{sec:acknowledgement_sec}
+It uses 3-axis phone's accelerometer sensor to detect potholes and braking
+events. Potholes are detected by monitoring the acceleration in \textit{z}
+direction where $\sqrt{a_{x}^{2} + a_{y}^{2}}$ helps in determining the braking
+event. Accelerometer data is then sent to the server along with GPS data to mark the
+location of potholes on Google maps. Compared to threshold based methods
+\cite[]{mohan2008nericell} SafeStreet uses machine learning technique to detect
+the potholes and braking events.
 
+SafeStreet is a scalable solution for road
+monitoring as it doesn't require any special hardware installation on the
+vehicles like others \cite[]{eriksson2008pothole} have used.
+
+Virtual reorientation algorithm \cite[]{bhushan} \cite[]{auro} takes care of
+restriction of keeping the phone in some particular orientation e.g. screen sky
+facing to measure the acceleration in \textit{z}-direction. Now user can keep
+his phone anywhere or in any orientation while riding. For best results phone
+position should be kept in the same orientation throughout the ride.
+
+
+% SafeStreet version 1 has been tested for \textgreater 5000 kilometers by 10
+% taxi drivers \cite[]{anupreet}. 56,772 pothole reports from different vehicle
+% type (auto,bus,car and bike) has been sent to server till 22nd July 2016 with
+% an average distance error of 4.3 meters across all vehicle types from the
+% nearest road and 3956 pothole reports have distance from nearest road greater
+% than 10 meters. A maximum error distance of \textbf{600 meters} has been
+% observed. The reason for this large error distance is location received from
+% cellular towers which can have accuracy of 100's of meters. From our GPS
+% analysis it is observed that 600 meters of distance error has brought down to
+% 38.6 meters if we stop
+% listening for location updates from cellular network.\\
+
+\textbf{Problems in SafeStreet}: Following are the shortcomings in the old
+app/server:
+
+\begin{enumerate}
+\item \textbf{GPS Error}:
+
+  3956 out of 56772 pothole reports are off by greater than 10 meters from the
+  nearest road. A maximum distance error of 600 meters from the nearest road has
+  been found and this is not acceptable for any pothole detection system. The
+  location obtained from GPS does not follow a straight line even if the vehicle
+  is moving in a straight line. Sometimes points may be marked on the opposite
+  road and this will lead to false pothole detection. Figure \ref{gps_jittering}
+  illustrates this.
+
+  \textbf{Solution:} By using Android location API for location listener we can
+  make our app not to look for location updates from cellular networks which has
+  an accuracy of 100's of meters. In Google location API, if there is no GPS fix
+  then this API determine the phone's location from cell towers which have
+  accuracy in ranges of 100's of meters.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=3.5in]{images/gps_jittering}
+    \caption{GPS error illustration}
+    \label{gps_jittering}
+  \end{figure}
+
+
+\item \textbf{Age of GPS location was not considered in labeling potholes with
+    lat-long}: Whenever a pothole is detected by the app, the app doesn't check
+  how old is the last known GPS location. If last known location is older than 2
+  seconds from the pothole detection time then we should ignore it as it would
+  add an error equal to the speed of the vehicle (in m/s) times the age of last
+  known GPS location (in seconds).
+  
+  \textbf{Solution}: A simple solution is, instead of ignoring old GPS points
+  (time \textgreater \ 2 seconds), store both pothole detection time as well as
+  GPS timestamp which will help in filtering out pothole location whose
+  difference in pothole detection timestamp and GPS timestamp is greater than 2
+  seconds. Compared to ignoring, storing the timestamp data of pothole and GPS
+  has an advantage of interpolating the GPS location for potholes whose
+  associated GPS location age is greater than 2 seconds.
+
+\item \textbf{Location updates from cell towers are not filtered}:
+  % If we imagine that our phone is not receiving location updates from GPS and
+  % we
+  % have configured the app to receive location from both GPS and network
+  % provider
+  % then we get pretty bad accuracy for network points.
+  The location updates from cell towers have low accuracy (in the range of 100s of
+  meters). As we can see in figure \ref{network_vs_gps} network points (the blue
+  one) are off the road by a big margin whereas GPS points (the green one) are
+  tracing the road pretty closely.
+  \begin{figure}[h]
+    \centering
+    \hspace{.2in} \includegraphics[width=5.1in]{images/network_vs_gps}
+    \caption{Showing location points received from cellular towers (Blue mark)
+      vs GPS(Green mark). Starting from Kresit to Hostel 14 inside IIT Bombay}
+    \label{network_vs_gps}
+  \end{figure}
+
+  % \item \textbf{Posting of junk data by malicious users is not handled}:
+  %   Anyone can post any data given that he/she knows our API url. This will
+  %   add erroneous data to the database. Solution for this has been discussed
+  %   in section \ref{sec:app_side}
+
+\item GPS outage (more details in sec \ref{sec:gps_outage}) was not taken into
+  consideration.
+
+\item \textbf{Not sending raw accelerometer data to the server}: The old version
+  of app, re-orient the accelerometer data and send it to server for further
+  processing, this is not a good idea because if in future there is a need to
+  modify re-orientation algorithm then the whole process of data collection will
+  have to be carried out again.
+
+\end{enumerate}
+
+All these shortcomings led to a new design which handles the above mentioned
+problems.
+
+% Is the problem still unsolved? The constitutes the statement of past/related
+% work crisply. Related work
+
+
+% I have done the GPS analysis and SafeStreet code review to figure out the
+% cause of this high error.
+
+% Based on GPS anaylsis code review, I have changed the location listener in
+% SafeStreet from Google location API \cite[]{google_location_api} to Android
+% location API \cite[]{android_location_api}.
+
+% Because of the nature of data that we collect has lot of redundancy, we have
+% used data compression technique to compress the data before sending it to
+% server. This will save 60-70\% of interent usage.
+  
+
+% the location listener from Google location API \cite[]{google_location_api} to
+% Android location API \cite[]{android_location_api}.
+
+% analysed their pothole report data as well as their app/server code. We found
+% that most of have come up with new app/server design to improve the location
+% accuracy of detected potholes and for this we have done GPS analysis and made
+% some design changes in SafeStreet v1. Unlike installing separate GPS and
+% accelerometer sensors on vehicle \cite[]{pothole_patrol} we use
+
+% What exactly is the problem you are trying to solve? This is the problem
+% statement.
+\noindent
+Problem Statement: This report addresses the following questions.
+
+\begin{enumerate}
+\item \label{q1} What is the percentage GPS outage for different vehicle types
+  (car, bus, scooter/cycle and train)?
+
+\item What is percentage GPS outage when operating phone on different GPS
+  settings?
+
+  These settings are:
+  \begin{enumerate}
+  \item \textbf{GPS only mode} : In this mode, app is configured in such a way
+    that it doesn't receive location updates from cell towers. Also the internet
+    connection is turned off.
+  \item \textbf{Assisted GPS (A-GPS)} : Same settings as in point (a) but
+    internet connection is turned on.
+  \item \textbf{A-GPS with network} : Same setting as point (b) but app is
+    configured to receive location updates from cell towers.
+  \end{enumerate}
+
+\item What accuracy numbers do we get when we operate Android phones on
+  different GPS settings for different vehicle types?
+\item Is there any effect of vehicle's speed on GPS accuracy numbers?
+\end{enumerate}
+
+% Why is the problem difficult to solve? This solution from this problem that
+% still needs to be solved 1. high battery usage when GPS is turned on. 2.
+% Handling GPS outage. There are cases when phones doesn't get any GPS fix. GPS
+% outage depends on phones and vehicle type.
+
+% How have you solved the problem?
+
+
+% What are the conditions under which your solution is applicable? This is a
+% statement of assumptions.
+
+% What are the main results? You have to present the main summary of the results
+% here.
+
+
+% What is the summary of your contributions?
+
+
+% How is the rest of the report organized?
+\section{Outline}
+This report is organized as follows,
+Chapter 2 discusses the related work,
+Chapter 3 describes the logistics used for experimentation,
+Chapter 4 presents the GPS analysis,
+Chapter 5 describes the experiments conducted to validate the distances measured
+on Google maps, 
+Chapter 6 discusses the new changes in SafeStreet app/server,
+Chapter 7 presents challenges faced while developing the app,
+Chapter 8 discusses future work and Chapter 9 concludes the report.
+
+
+% \chapter{Motivation}
+% \label{sec:motivation_sec}
 
 % \include{analysis/analysis}
 
-\chapter{GPS Analysis}
-\section{How GPS works ?}
-Before we dig deep into the GPS analysis lets first understand how GPS works?
 
-\begin{figure}[h]
-  \centering
-  \includegraphics[width=2.5in]{analysis/satellite}
-  \caption{A cell phone receiving signals from 4 satellites}
-  \label{satellite}
-\end{figure}
-As we know that GPS works on the principle of trilateration which means that if
-we want to find out the location of a point in space and we know
-it\textquotesingle s distance from three points then we can uniquely identify
-this point. Yes you guessed it right! it is the point of intersection of three
-spheres with the radius equal to the distance from the point in question to
-their respective centers.
-\begin{figure}[h]
-  \centering
-  \includegraphics[width=2.5in]{analysis/trilateration}
-  \caption{Trilateration}
-  \label{trilateration}
-\end{figure}
-
-GPS receivers uses accurate time difference to calculate it\textquotesingle s
-distance from satellites, which is equal to the time of arrival of GPS signal
-minus the signal sending time. But it is not that simple to get the time in
-nonoseconds range with our cell phones as it doesn't have atomic clock like
-satellites have. Just to get an idea of why we need nanosecond accuracy in time
-difference, an error of just 30 nanoseconds in time can lead to an error of 9
-meters on Earth which is large enough to changed your pothole location from one
-lane to another. To solve this need of high accuracy clocks in our cell phones,
-cell phones uses 4 satellites to determine the exact time.
-
-Now we have the basic understanding of GPS, lets try to understand some of the
-GPS terminologies that we have used in this report.
-
+% Because of all these shortcomings we have come up with a new design changes
+% which will try to solve the above mentioned problems.
+\chapter{Logistics used in experiments}
 
 % In this report we have done the analysis of GPS data obtained in our data
 % collection phase.
 
- % Before I answer this question lets first see the experimental setup.
- % Vehicles which I used in my experiments are Suzuki Access 125 scooter and my
- % bicycle, Autorikshaw , Maruti SX4 (car), IITB TumTum and Mumbai roadways
- % buses and Mumbai local (2nd class).
-
- % Phones used in our experiments are Oneplus One, Sumsung Grand Max, Sumsung
- % Grand Prime, Samsung Galaxy S3, Samsung S3 Neo, LG Nexus 4, LG Nexus 5X, LG
- % Nexus 5, Moto-E and HTC Desire 626g+.
-
- % The route that I have travelled on for most number of times are
-
- % 1. Hostel 14 to Kresit and return
-
- % 2. Kresit to Ghatkopar RCity Mall and return
-
- % 3. Kresit to Kasarvadavali (Thane west) and return
-
-\section{GPS Terminologies}
-Lets first learn some of complex terminologies related to GPS.
-% First is GPS latitude, it is same as geographic latitude that we already know
-% about. Just to refresh our memory, latitude of a point on Earth's surface is
-% the angle formed by the equitorial line passing through the center of Earth
-% and the point joining the center of Earth. Latitude of north pole is 90\degree
-% N and south pole is 90\degree S which is 90 and -90 repectively in decimal
-% format.
-
-% Second is GPS longitude, it is same as geographic longitude. Longitude of a
-% point on Earth's surface is the angle formed by the plane passing through the
-% Prime Meridian (which is Greenwich, England) containing North and South poles
-
-% and the plane containing the point which also contains North and South poles.
-% It is 0\degree for Greenwich, England and 0 to +180\degree for east side
-% points and 0 to -180\degree for west side points.
+% Before I answer this question lets first see the experimental setup.
+To determine the \% GPS outage, comparing GPS accuracy numbers and finding the
+effect of vehicle speed on GPS accuracy with different GPS settings (GPS only,
+A-GPS , A-GPS+internet) for different vehicle types (scooter, auto, car and bus)
+I have made a total of 32 trips between
 
 \begin{enumerate}
-\item GPS \textbf{accuracy}, This is a number that we get from our GPS device
-  and it has a unit of meters. This is an important attribute for GPS location
-  % and we will spend most of our time around it.
-  The definition of accuracy according to \textit{developer.android.com} website
-  is ``the radius of \textbf{68\%} confidence''. In other words, if you draw a
-  circle centered at this location's latitude and longitude with a radius equal
-  to the accuracy in meters, then there is a 68\% probability that the true
-  location is inside the circle.
-
-\item Geometric Dilution of precision (\textbf{GDOP}). It is a dimension less
-  attribute and it is little bit difficult to understand this attribute. But in
-  general it shows the effect of position of satellites in orbit on the GPS
-  accuracy number that we get. A general rule of thumb is that a lower values
-  (\textless \ 2)of dops gives high accuracy point. There are 3 DOP values that we
-  get from cell phones:
-  \begin{enumerate}
-  \item HDOP - horizontal dilution of precision
-  \item VDOP - vertical dilution of precision
-  \item PDOP - position (3D) dilution of precision
-  \end{enumerate}
-
-  HDOP is related to the horizontal accuracy which is our lat-longs and VDOP is
-  related to the accuracy of altitude. For our case we are not concerned about
-  the altitude accuracy because we show pothole location on Google maps which is
-  flat.
-
-  From our GPS analysis we found that lower values of DOPs results in more
-  accurate location point.
-
+\item Hostel 14 and Kresit
+\item Kresit and Ghatkopar RCity Mall and
+\item Kresit and Kasarvadavali (Thane west)
 \end{enumerate}
 
-\section{GPS Related Questions and Answers}
-I have tried to answer some of the GPS related questions with the experiments
-that I have performed. The answers for these questions helped us in developing a
-more accurate pothole detection app which is our ultimate goal. These questions
-are as follows.
-\begin{enumerate}
-\item \label{q1} What is the percentage GPS outage when travelling in different vehicles types
-  (car, bus, scooter/cycle and train)?
-\item What is percentage GPS Outage when operating phone on different GPS settings?  
-These settings are
-  \begin{enumerate}
-  \item \textbf{GPS only mode} : meaning our GPS logging app is configured to
-    not receive location updates from cell towers and internet connection is
-    turned off.
-  \item \textbf{GPS with internet} : same settings as point (a) but internet connnection is
-    turned on.
-  \item  \textbf{GPS with network and internet} : same settings as point (b) but
-    with logging app configured to receive location updates from cell towers.
-  \end{enumerate}
-  I haven\textquotesingle{}t included network only mode setting because the
-  accuracy of received location is very low (can be in range of few 100s of
-  meters) and this is not acceptable for our application.
-\item What accuracy numbers we get when we operate android phones on different
- GPS settings ? 
-\item How DOP and accuracy number are related?
-\item What is the correlation between the number of satellites and accuracy
-  number?
-\item Is there any effect of vehicle speed on accuracy?
+For experimentation, I have used my cycle, Suzuki Access 125 scooter,
+Autorickshaws, Maruti SX4 (car), IITB TumTum, Mumbai roadways buses and Mumbai
+local (2nd class).
 
-  We also tried to find out the effect of weather condition (cloudy vs
-  non-cloudy) onGPSaccuracy but we were not able to collect sufficient data
-  for non-cloudy weather as it is rare in mumbai to get clear sky in mansoon
-  season.
+The phones which were used for data collection includes Oneplus One, OnePlus X,
+Samsung Grand Max, Samsung Grand Prime, Samsung Galaxy S3, Samsung S3 Neo, LG
+Nexus 4, LG Nexus 5X, LG Nexus 5, Moto-E and HTC Desire 626 g+.
 
-\end{enumerate}
+I have used GPS logger app \cite[]{gps_logger_app} \cite[]{gps_logger_website}
+to collect GPS data.
 
-Lets answer these questions one by one.
+ \begin{figure}[h]
+   % \centering
+   % \begin{subfigure}[t]{.5\textwidth}
+   %   \centering
+   %   \includegraphics[width=2.3in]{images/logger_app}
+   %   \caption{GPS logger app by me}
+   % \end{subfigure}%
+   % ~
+   % \begin{subfigure}[t]{0.5\textwidth}
+     \centering
+     \includegraphics[width=2.3in]{images/gpslogger_app}
+     \caption{Open sourced GPS logger app used for data collection}
+   % \end{subfigure}
+   % \caption{GPS logger apps used in data collection}
+   \label{gpslogger_app}
+ \end{figure}
 
-\section{GPS outage comparison for different vehicle type}
+ \pagebreak
+ % I have developed a GPS logger app which receives location updates
+ % from both Google Location API as well as Android Location API so that we can
+ % compare their accuracy numbers. But, we later found that Google API is not
+ % suited for our application because of the reasons discussed in section
+ % \ref{conclusion} therefore we stopped using Google API.
+
+ % The reason why
+
+ % I have built a separate app for GPS logging that logs all the GPS details which
+ % GPS logger app \cite[]{gps_logger_app} \cite[]{gps_logger_website} logs in
+ % addition my app also logs the vehicle type information used for ride. For this
+ % a dropdown menu is incorporated on the top of the screen to select the vehicle
+ % type. One text box is also made to enter any remark like whether condition and
+ % current GPS settings of phone during ride.
+
+ % While developing this app, I figured out that there is no direct API for
+ % getting the number of satellites used in GPS fix and also for \textit{DOP}
+ % related information we had to separately parse the NMEA string \cite{nmea}.
+
+%  \chapter{GPS Analysis}
+%  \section{How GPS works ?}
+%  Before we dig deep into the GPS analysis let's first understand how GPS works?
+
+% \begin{figure}[h]
+%   \centering
+%   \includegraphics[width=2.5in]{analysis/satellite}
+%   \caption{A cell phone receiving signals from 4 satellites}
+%   \label{satellite}
+% \end{figure}
+% As we know that GPS works on the principle of trilateration which means that we
+% can uniquely identify the location of a point in space if we know
+% it\textquotesingle s distance from three points. In our case these 3 points are
+% satellites and cell phone is the point which we want to identify uniquely.
+% \begin{figure}[h]
+%   \centering
+%   \includegraphics[width=2.5in]{analysis/trilateration}
+%   \caption{Trilateration}
+%   \label{trilateration}
+% \end{figure}
+
+% GPS receivers (in cell phones) use accurate time difference to calculate their
+% distance from satellites, which is equal to the difference between the arrival
+% time of GPS signal and the time at which signal was sent. But it is not that
+% simple to get the time in nanosecond range with our cell phones as it doesn't
+% have atomic clock unlike satellites. The reason we need nanosecond accuracy in
+% time difference is that an error of just 30 nanoseconds in time can lead to an
+% error of 9 meters on Earth which is large enough to change pothole location from
+% one lane to another. To solve the need of high accuracy clocks in our cell
+% phones, cell phones uses 4 satellites.
+
+% \newpage
+
+ \chapter{GPS analysis}
+\section{GPS outage comparison for different vehicle type and different GPS settings}
 \label{sec:gps_outage}
-Let us first define what do we mean by GPS outage ?
+\% GPS outage is defined as :
 \begin{equation}\label{gps_outage_eqn}
-  \%GPS\  outage = 100 \  - \  \frac{number\  of\  gps\  location\  updates\  received}{total\  trip\  time\  in\  seconds}\  *\  100
+  \%GPS\  outage = 100 \  - \  \frac{number\  of\  GPS\  location\  updates\  received}{total\  trip\  time\  in\  seconds}\  *\  100
 \end{equation}
 
 \noindent
-\textit{total trip time} is measured from the time we get the first GPS fix to
-the time at which we stop our GPS logging application. Equation
-\ref{gps_outage_eqn} is valid only when we set phone to receive location update
-after every 1 second. If the location update frequency is 1 after every $x$
-seconds then we should divide the total trip time by $x$.
+In equation, \ref{gps_outage_eqn} \textit{total trip time} is the time when we
+get the first GPS fix to the time at which we stop our GPS logging application.
+Equation \ref{gps_outage_eqn} is valid only when our phone is set to receive
+location updates after every 1 second. If the location update frequency is 1
+after every $x$ seconds then the total trip time should be divided by $x$.
 \\
 
-Now lets answer our first question, what is the percentage GPS outage when
-travelling in different vehicles types (car, bus, scooter/cycle and train)?
-
-Answer: We use table \ref{gps_outage_table} to answer this question.
-% GPS \% outage for trains and buses is found to be larger as compared to scooter, auto
-% and buses
-One major observation that we can draw by looking at table
-\ref{gps_outage_table} is that cell phones struggles to get a GPS fix in crowed
-vehicles i.e. bus and train as compare to less crowed vehicles like car, auto
-and scooter. On an average the GPS outage in buses and trains are found to be
-around 33\% and 67\% where as it is around 6-23\% in scooter, auto and car.
-
-\section{GPS outage comparison for different GPS settings}
-
-Question: What is percentage GPS Outage when operating phone on different GPS
-settings?
-
-Answer: Unfortunately we couldn\textquotesingle{}t find any correlation between
-GPS setting and GPS outage. As we can see from table \ref{gps_accuracy_table}
-that if we use GPS in combination with internet then GPS outage decreases for
-auto and train but increase for scooter and car. Altough there can be many
-reasons for this behaviour. Few of them may be are:
-
-1. \textbf{Different phone hardware}: We have observed that some phones
-consistenly have higher GPS outage compared to other phones which is an
-indication that GPS accuracy is affected by phone\textquotesingle{}s hardware.
-Just to give you an visual feel for the hardware dependence see figure
-\ref{gps_outage_fig} which shows that in an identical environment different
-phones perform differently. If you look carefully, figure \ref{gps_outage_gp}
-shows that Samsung Grand Prime doesn\textquotesingle{}t get any location update
-in a run of 1.06 km.
-
-\begin{figure*}[t!]
-  \centering
-  \begin{subfigure}[t]{0.33\textwidth}
-    \centering
-    \includegraphics[width=1.3in]{images/gps_outage_thane_west_to_thane_stn_nexus4}
-    \caption{LG Nexus 4}
-    \label{gps_outage_nexus4}
-  \end{subfigure}%
-  ~
-  \begin{subfigure}[t]{0.33\textwidth}
-    \centering
-    \includegraphics[width=1.3in]{images/gps_outage_grandprime_kasarvadli_to_thane_station_bus}
-    \caption{Samsung Grandprime}
-    \label{gps_outage_gp}
-  \end{subfigure}%
-  ~
-  \begin{subfigure}[t]{0.33\textwidth}
-    \centering
-    \includegraphics[width=1.3in]{images/gps_outage_oneplusone_kasarvadli_to_thane_station_bus}
-    \caption{Oneplus One}
-    \label{gps_outage_oneplusone}
-  \end{subfigure}
-  \caption{Showing GPS outage with the help of marking GPS location on Google
-    maps for different phones while travelling in bus from Kasarvadavali to
-    Thane station}
-  \label{gps_outage_fig}
-\end{figure*}
-
-2. \textbf{Different travel route}: Trips done on cycle, scooter and auto are
-all within IIT campus whereas trips done on car, bus and train are outside of
-IIT campus. It is observed that we get better average accuracy numbers
-(\textless \ 5 meters) outside campus as compared to inside IIT campus for the
-same device. This behaviour can be because of large number of tree inside IIT
-campus which cause hiderance for GPS signal.
-
-% phone hardware is one of factor affecting GPS accuracy.
+Table \ref{gps_outage_table} presents the summary of \% GPS outage for different
+vehicle types and GPS settings. Table \ref{gps_outage_table} shows that on an
+average the GPS outage in buses and trains is around 33\% and 67\% respectively
+whereas it is around 6-23\% in scooter, auto and car.
 
 
  \begin{table}[h!]
    \centering
    \caption{Percentage GPS outage for different vehicle type and GPS settings}
    \label{gps_outage_table}
-   \begin{tabular}{|m{.9in}|c|c|c|l|}
+   \begin{tabular}{|m{0.9in}|c|c|c|l|}
      \hline
-                                & gps only & gps+internet & gps+network+internet & average of all GPS settings \\ \hline
-     cycle/scooter              & 5.44     & 7.98         & 56.59                & 23.33                       \\
-     auto                       & 14.62    & 0.00         & 3.03                 & 5.88                        \\
-     car                        & 2.43     & no data      & 33.08                & 17.76                       \\
-     bus                        & 32.75    & no data      & no data              & 32.75                       \\
-     train                      & 91.03    & no data      & 43.79                & 67.41                       \\ \hline
-average across all vehicle type & 29.26    & 3.99         & 34.12                & 
-     \\ \hline 
+     & GPS only & A-GPS & A-GPS + network  \\\hline 
+     cycle/scooter                   & 5.44     & 7.98         & 56.59      \\ \hline
+     auto                            & 14.62    & 0.00         & 3.03       \\ \hline
+     car                             & 2.43     & no data      & 33.08      \\ \hline
+     bus                             & 32.75    & no data      & no data    \\ \hline
+     train                           & 91.03    & no data      & 43.79      \\ \hline
+     average across all vehicle type & 29.26    & 3.99         & 34.12      \\ \hline 
    \end{tabular}
  \end{table}
 
+ The observation that can be drawn from the above table is that it is difficult
+ for cell phones to get a GPS fix in more crowded vehicles like bus and train in
+ comparison to less crowded vehicles (like scooter, auto and car).
+
+ % Question: What is percentage GPS Outage when operating phone on different GPS
+ % settings?
+
+
+ % As it is evident from table \ref{gps_outage_table}that there is no
+ % correlation between
+ 
+ As it can be observed from table \ref{gps_outage_table} percentage GPS outage
+ is high for A-GPS and A-GPS+network settings in comparison to GPS
+ only mode in the case of scooter/cycle and car whereas it is low for auto and
+ train.
+
+ When average percentage GPS outage is taken for all vehicles, A-GPS settings
+ seem to have lowest whereas A-GPS+network have highest percentage outage. We
+ have also observed that on few occasions, phones from different manufacturers
+ have different GPS outage, traveling under the same condition and GPS settings
+ figure \ref{gps_outage_nexus4} shows this behaviour.
+
+ 
+
+
+
+ % , if we use GPS in combination with internet then GPS outage decreases for
+ % auto and train but increase for scooter and car.
+ % Although there can be many reasons for this behaviour, few of them are:
+ % \begin{enumerate}
+ % \item \textbf{Different phone hardware}: We have observed that some phones
+ %   consistently have higher GPS outage compared to other phones which indicates
+ %   that GPS accuracy is affected by phone\textquotesingle{}s hardware. Figure
+ %   \ref{gps_outage_fig} shows how different phones behaves differently under
+ %   identical conditions. If you look carefully, figure \ref{gps_outage_gp} shows
+ %   that Samsung Grand Prime doesn\textquotesingle{}t get any location update in
+ %   a run of 1.06 km.
+ % \item \textbf{Different travel routes}: Trips done on cycle, scooter and auto
+ %   were all within IIT campus whereas trips done on car, bus and train were
+ %   outside of IIT campus. It was observed that we get better average accuracy
+ %   numbers (\textless \ 5 meters) outside campus as compared to inside IIT
+ %   campus for the same device. This behaviour can be because of large number of
+ %   trees inside IIT campus which causes hindrance for GPS signal.
+
+ % \end{enumerate}
+ % phone hardware is one of factor affecting GPS accuracy.
+ \newpage
+
+ \begin{figure}[h!]
+   \centering
+   \begin{subfigure}[t]{0.33\textwidth}
+     \centering
+     \includegraphics[width=1.3in]{images/gps_outage_thane_west_to_thane_stn_nexus4}
+     \caption{LG Nexus 4}
+     \label{gps_outage_nexus4}
+   \end{subfigure}%
+   ~
+   \begin{subfigure}[t]{0.33\textwidth}
+     \centering
+     \includegraphics[width=1.3in]{images/gps_outage_grandprime_kasarvadli_to_thane_station_bus}
+     \caption{Samsung Grand Prime}
+     \label{gps_outage_gp}
+   \end{subfigure}%
+   ~
+   \begin{subfigure}[t]{0.33\textwidth}
+     \centering
+     \includegraphics[width=1.3in]{images/gps_outage_oneplusone_kasarvadli_to_thane_station_bus}
+     \caption{Oneplus One}
+     \label{gps_outage_oneplusone}
+   \end{subfigure}
+   \caption{Showing GPS outage for different phones for the same route}
+   \label{gps_outage_fig}
+ \end{figure}
+
+ \newpage
  \section{Comparison of GPS accuracy number for different vehicle types and GPS
    settings}
 
- \begin{table}
+ \label{gps_accuracy_for_different_gps_settings_and_vehicle_types}
+
+ \textbf{GPS accuracy} is a number obtained from GPS device and it is measured
+ in meters. Definition of accuracy according to \textit{developer.android.com}
+ \cite{android} website is ``the radius of \textbf{68\%} confidence''. In other
+ words, if you draw a circle centered at this location's latitude and longitude
+ with a radius equal to the accuracy in meters, then there is a 68\% probability
+ that the true location is inside the circle.
+
+ \begin{table}[h]
 
    \centering
    \caption{Median accuracy (in meters) for different vehicle types and GPS
      settings}
+   \label{median_accuracy_table}
    \begin{tabular}{|l|c|c|c|}
      \hline
-     vehicle type$\backslash$ gps settings & GPS only & GPS+internet & GPS+internet+network \\ \hline
+     vehicle type/GPS settings & GPS only & A-GPS & A-GPS+network \\ \hline
      scooter/cycle                         & 12.3     & no data      & 9.9                  \\ \hline
      auto                                  & 15.9     & 5.0          & 6.2                  \\ \hline
      car                                   & 13.6     & no data      & 165.4                \\ \hline
@@ -352,100 +579,425 @@ average across all vehicle type & 29.26    & 3.99         & 34.12               
 
  \end{table}
 
-\begin{table}[]
+\begin{table}[h]
   \centering
-  \caption{My caption}
-  \label{my-label}
-  \begin{tabular}{llll}
-    vehicle type/gps settings   & gps only & gps+internet & gps+internet+network \\
-    scooter/cycle               & 13.8     & no data      & 49.4                 \\
-    auto                        & 16.8     & 5.3          & 20.8                 \\
-    car                         & 14.0     & no data      & 281.4                \\
-    bus                         & 23.3     & 23.6         & 39.5                 \\
-    train                       & 37.1     & no data      & 186.8                \\
-    average across all vehicles & 21.0     & 14.4         & 115.6               
+  \caption{Mean accuracy (in meters) for different vehicle types and GPS
+    settings}
+  \label{mean_accuracy_table}
+  \begin{tabular}{|l|l|l|l|}
+    \hline
+    vehicle type/GPS settings   & GPS only & A-GPS & A-GPS+network \\ \hline
+    scooter/cycle               & 13.8     & no data      & 49.4                 \\ \hline
+    auto                        & 16.8     & 5.3          & 20.8                 \\ \hline
+    car                         & 14.0     & no data      & 281.4                \\ \hline
+    bus                         & 23.3     & 23.6         & 39.5                 \\ \hline
+    train                       & 37.1     & no data      & 186.8                \\ \hline
+    average across all vehicles & 21.0     & 14.4         & 115.6 \\  \hline
   \end{tabular}
 \end{table}
 
  
- \begin{table}[h!]
+ \begin{table}[h]
    \centering
    \caption{Percentage GPS accuracy less than 10 meters}
    \label{gps_accuracy_table}
-   \begin{tabular}{l|lll}
-     vehicle type/gps settings   & gps only & gps+internet                  &
-                                                                              gps+internet+network \\ \hline
-     scooter/cycle               & 40.6 \%   & not sufficient data           & 32.8 \%                \\
-     auto                        & 66.4 \%   & 94.1 \%                         & 85.3 \%                \\
-     car                         & 68.1 \%   & not sufficient data  & 16.3 \%                \\
-     bus                         & 39.4 \%   & 17.3  \%                        & 6.8  \%                \\
-     train                       & 20.5 \%   & not sufficient data           & 34.5 \%                \\
-     average across all vehicles & 47.0 \%   & 55.7   \%                       & 35.1 \%               
+   \begin{tabular}{|l|l|l|l|}
+     \hline
+     vehicle type/GPS settings   & GPS only & A-GPS        & A-GPS+network \\\hline
+     scooter/cycle               & 40.6     & not sufficient data & 32.8                 \\\hline
+     auto                        & 66.4     & 94.1                & 85.3                 \\\hline
+     car                         & 68.1     & not sufficient data & 16.3                 \\\hline
+     bus                         & 39.4     & 17.3                & 6.8                  \\\hline
+     train                       & 20.5     & not sufficient data & 34.5                 \\\hline
+     average across all vehicles & 47.0     & 55.7                & 35.1 
+     \\ \hline
    \end{tabular}
  \end{table}
- One conclusion that we can draw from table \ref{gps_outage_table} is that GPS
- only mode give better accuracy on an average compared to gps+internet+network
- mode and hence it will be a good strategy to ignore location updates from cell
- towers. Only reasons for using network as a source of location update is to get
- faster location update which comes at the cost of low accuracy.
+ \pagebreak
+
+ % One conclusion that we can draw from
+
+ Table \ref{median_accuracy_table} shows that average GPS accuracy for GPS only
+ mode, A-GPS mode and A-GPS with network mode have 17.6, 11 and 45.8 meters of
+ accuracy across all vehicles.
+
+ On an average GPS only and A-GPS gives better accuracy compared to
+ A-GPS+network mode. Hence it is good to ignore location updates from cell
+ towers. This has become a motivating factor in switching from Google location
+ API \cite[]{google_location_api} to Android Location API
+ \cite[]{android_location_api}. The reason for switching to Android location API
+ is that we can choose the source of location provider in Android location API
+ whereas it is not possible to do with Google location API.
+
+ % because if we use Google Location
+ % API then we have no control to filter out the location updates from network.
+
+ From tables \ref{median_accuracy_table},\ref{mean_accuracy_table},
+ \ref{gps_accuracy_table} we can see that, GPS accuracy for scooter, auto and
+ car is better than bus or train.
+
+ % a good reason to justify this behaviour is
+ % signal interference because of large number of nearby phones in crowded
+ % vehicles.
+
+ % which gives us the flexibility to not receive location
+ % updates from cell towers whereas this is not possible to do it in Google API.
+
+ % Only reason for using network as a source of location update is to get
+ % faster location update which comes at the cost of lower accuracy.
+ % \newpage
+ 
+ % \section{Correlation between number of satellites used in GPS fix and GPS
+ % accuracy number}
+ % On an average GPS accuracy increases with the increase in number of
+ % satellites used for GPS fix. But this is not always true, better accuracy can
+ % be obtained with less number of satellites as shown in figure
+ % \ref{accuracy_vs_satellites_scatter_plot}.
+ % \begin{figure}[h]
+ %   \centering
+ %   \begin{subfigure}[t]{0.5\textwidth}
+ %     \centering
+ %     \includegraphics[width=3.2in]{images/accuracy_vs_satellites}
+ %     \caption{Average accuracy vs number of satellites used in GPS fix}
+ %   \end{subfigure}%
+ %   ~
+ %   \begin{subfigure}[t]{0.5\textwidth}
+ %     \centering
+ %     \includegraphics[width=3.2in]{images/accuracy_vs_satellites_scatter_plot}
+ %     \caption{Accuracy vs number of satellites used in GPS fix}
+ %     \label{accuracy_vs_satellites_scatter_plot}
+ %   \end{subfigure}
+ %   \caption{Accuracy vs number of satellites}
+ %   \label{accuracy_vs_satellites}
+ % \end{figure}
+ % \newpage
+\section{Vehicle speed vs Accuracy}
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=4in]{images/accuracy_vs_speed3}
+  \caption{Average accuracy vs. Speed value received from GPS}
+  \label{accuracy_vs_speed_label}
+\end{figure}
+Figure \ref{accuracy_vs_speed_label} shows that speed value returned from GPS doesn't
+have any significant effect on GPS accuracy. There is only 5 meters of variation
+observed in accuracy for all speed ranges.
+
+\chapter{Experiments}
+\section{Ground truth testing for GPS location}
+\begin{enumerate}
+\item \textbf{Experiment 1: Validating Google maps distances for inside IIT
+    campus}: Lat-longs of potholes are just two numbers it doesn't have any value
+  until it is plotted on some map. So it is important to validate the Google
+  map as all the pothole locations are shown on the Google maps.
+
+  In our ground truth testing experiments we found that distances
+  measured on Google maps doesn't match with the real ground distances. To
+  testify this, we measured the width of the K V school road inside IITB with a
+  rope and it was found to be 8 meters whereas on Google maps it showed only 4
+  meters. So we can conclude that Google maps doesn't always reflect the
+  absolute ground truth, they just show an approximate measurement and therefore
+  should not be used for accurate measurements purposes.
+
+\item \textbf{Experiment 2: Finding the average and maximum distance of GPS
+    points logged by the stationary phones from it's true location}: 
+
+  This experiment shows the behaviour of the GPS points logged by the stationary
+  phones which are kept on a known location (we know the lat-long of that point)
+  so that later we can measure the distances of GPS points from its true
+  location. For this, we have chosen 3 potholes near road intersection and kept
+  4 phones in GPS and A-GPS mode for 1 minute turn by turn.
+
+  We have chosen known pothole locations for this experiment so that later we
+  can compare the position of this pothole reported by our app with what we
+  observed during experiments. Although we haven't done this part yet.
+
+  \textbf{Result} : The average error distance found for pothole\#1 from it's
+  true location is \textbf{7.26 meters} and \textbf{76.11 \%} of times location
+  logged by phones is within a circle of radius 10 meters from its true
+  location. The farthest point was \textbf{25.8 meters} away.
+
+  \textbf{Conclusion}: There is 76 \% probability that pothole detected by with
+  the help of GPS will be within a circle of radius 10 meters from its true
+  location.
 
 
- Question: What accuracy numbers we get when we operate android phones on
- different GPS settings ? Answer:
+  % as we can know the location of road intersections from the
+  % Google maps. To know the exact location of these potholes we have
+  % measured their distances by rope from the road intersection.
+
+  % We have conducted the experiments to analyze how accurately we can find out
+  % the location of potholes with GPS. For this we chose 3 potholes inside the
+  % campus and kept 4 phones near the potholes for which we knew the exact
+  % location and logged the GPS points for 1 minute in GPS only and A-GPS mode.
+
+  \begin{figure}[h]
+    \centering
+    \includegraphics[width=4in]{images/pothole1}
+    \caption{Showing the GPS points on Google map. GPS points are logged by 4
+      different phones for 1 minute, Point P in red color denotes the true
+      location of the phones. Number near markers denotes GPS accuracy
+      of the points. Phone location is 44.5 meters away from the intersection of
+      Brewberry road and Hostel 5 road. A thumbnail photo shows 4 phones lying
+      pothole while logging the GPS data}
+  \end{figure}
+
+
+
+\end{enumerate}
 
 
 \chapter{New changes in SafeStreet}
 
+SafeStreet server as well as app code has been put under git version control and
+is hosted on Github.
+
+App URL is \url{https://github.com/vikrant1433/safestreet2-app/tree/develop} \\
+Server URL is \url{https://github.com/vikrant1433/safestreet-server/tree/develop3}
+
+A documentation generator tool called Sphinx \cite[]{sphinx} has been integrated
+with SafeStreet which will use doc string comments from classes and function
+definitions to generate documentation.
+
+SafeStreet documentation has been put up on readthedocs
+\url{http://safestreet-server.readthedocs.io/en/latest/} which automatically get
+update on every code push to Github. But as there is no documentation written by
+our seniors in the standard format, there is no documentation available for this
+project. For future purposes this documentation system will be helpful.
+ 
 \section{App Side}
 \label{sec:app_side}
+\begin{enumerate}
+\item \textbf{Compressing log files before sending to server}: We have observed
+  that there is a lot of data redundancy in log files because of nature of
+  data that we collect (First 3 digits of latitude and longitude changes after
+  traveling distance greater than 11 Km). After compressing, file sizes are
+  reduced by 60-70\% which saves user's internet cost. We have tried many
+  compression algorithms but zip4j is found to be a better choice for our
+  application. Figure \ref{compression} shows the comparison of different
+  compression algorithms ran on our log files.
+  \begin{figure}[h]
+    \centering
+    \includegraphics[width=6in]{images/compression7}
+    \caption{Comparison of different compression algorithm for file size of 173.9 MB}
+    \label{compression}
+  \end{figure}
 
-Preventing upload of tempered files.
+  % \label{api_security}
+% \item \textbf{Preventing upload of tampered files} : To prevent tampering of log
+%   files, we have calculated the md5 checksum of log file's content + user's
+%   email id which will be send with every file upload request to server, then on
+%   server side we recompute the md5 hash of file content + user's email id and if
+%   it matches then we are sure that uploaded files are not tampered and if it
+%   doesn't we simply discard those files. The reason for including some
+%   additional text with log file which is usually called as ``salt'' is to
+%   prevent the malicious user from computing our secret checksum even if
+%   he/she knows what hashing algorithm we have used.
 
-to prevent tempering with our log files, we have calculated the md5 checksum of
-our log files + user's emailid. The reason for including some additional usually
-called as ``salt'' is to prevent the user from computing the our secret checksum
-and send it with the post request, if some malicious user tried to upload
-tempered log files then we can simply discard those files whose md5 checksum
-doesn't match with what checksum we have calculated at the time of log
-generation. This scheme is better compared to scheme of sending encrypted files
-and then decrypting it on server side because encryption and decryption
-operation are slower than computing md5 hash.
+%   This scheme is better compared to sending encrypted files and then decrypting
+%   them on server side because encryption and decryption operations are slower than
+%   computing md5 hash and moreover we want data integrity not confidentiality.
+
+ 
+\item Using Android SQLite database with GreenDAO \cite{greendao} as an ORM
+  (Object Relational Mapper): An ORM is an abstraction layer which helps us to
+  interact with the database table in an object oriented manner.
+
+  Writing plain old SQL queries very tedious and maintenance become painful as
+  more features get added to the project.
+
+
+  In ORM, database table becomes class, columns becomes the member variables and
+  each row in the table is an object of that class.
+
+  Using an ORM we are not bothered about writing SQL to create tables and
+  managing column constraints that will be managed by ORM layer.
+
+  In the old app, information about the upload status of log files is stored in
+  files which is very inconvenient . It is difficult to keep
+  track of which files are yet to be uploaded.
+
+  Now the upload status of files is stored in the database which will be queried
+  every hour and sent to the server if internet connection is on.
+
+\item Use of new view library called ButterKnife \cite{butterknife} to reduce
+  writing of redundant UI code. Using ButterKnife library helps in focusing more on
+  business logic rather than worrying about UI code wiring. Less code means less
+  maintenance.
+  \begin{figure}[h!]
+    \centering
+    \begin{subfigure}[t]{0.5\textwidth}
+      \centering
+      \includegraphics[width=3in]{images/redundant_code3}
+      \caption{Redundant code}
+      \label{redundant_code_fig}
+    \end{subfigure}%
+    ~
+    \begin{subfigure}[t]{0.5\textwidth}
+      \centering
+      \includegraphics[width=3in]{images/concise_code3}
+      \caption{Concise code using ButterKnife}
+      \label{concise_code_fig}
+    \end{subfigure}
+    \caption{Eliminating redundant UI code}
+    \label{redundant_concise_fig}
+  \end{figure}
+
+\item \textbf{Exponential backoff retries requests in case of failed upload
+    files}: In case there is a failure in posting data to the server which can
+  be because of server overload or loss of internet connectivity, the app wait
+  time before retry will increase in an exponential manner (1,2,4,8,16 seconds )
+  before it reaches it's maximum retry limit (5 in our case), this will happen only
+  if there is an internet connection and users has pending files to upload.
+  After maximum retry limit has reached user can manually press upload button to
+  upload the log files to server or app will automatically try to send the
+  pending file every time the app gets restarted thereby required minimum user
+  intervention.
+
+\end{enumerate}
 
 \section{Server Side}
 \label{sec:server_side}
 
-\section{Design comparison of SafeStreet versions (App side)}
+Server side technologies:
+\begin{enumerate}
+\item \textbf{Web framework}: We use open sourced Python-based Django
+  web framework \cite[]{django} to process all our log file and displaying
+  potholes markers on Google maps. All our functionalities are REST APIs which
+  are build with \textit{django restframework} (\textit{drf}).
+  \item \textbf{Webserver}: We have migrated from using django development server
+    to Nginx with Gunicorn which is more powerful and flexible than Django's
+    built-in server. Automatic restart script has been written to restart (nginx+gunicorn)
+    servers on power failures.
+  \item \textbf{Database}: We use Postgres database to store all ride details sent
+    from Android devices.
+\end{enumerate}
 
-\section{Design comparison of SafeStreet versions (Server side)}
+% , running the clustering algorithm
 
-\section{Performance comparison of SafeStreet versions}
+% Java implementation of reorientation algorithm has been removed from client
+% side and is now implemented on server side.
 
-\chapter{Challenges}
+% Mechanism to detect upload of tampered files In re-orienting the accelerometer
+% data, passing it to svm predictor, saving pothole location in database,
+% running the clustering algorithm and finally showing pothole on map.
 
+% The advantange of this design is that now we don't need
+
+
+% \section{Design comparison of SafeStreet versions (App side)}
+
+
+% \section{Design comparison of SafeStreet versions (Server side)}
+
+\section{Hurdles in implementation}
+\begin{enumerate}
+% \item \textbf{Inconsistent comments in code}: Comments written in old code
+%   base is not consistent with what code do. As you can see in figure
+%   \ref{inconsistent_comments_fig}, comment tells that we consider a range of
+%   data of moving vehicle if speed is greater than 10 meters/second whereas they
+%   mean to say 10 kmph.
+
+  % Remember one thing converting comments to code is easier
+  % than other way around so comments should written with at most care as it will
+  % save hours of works for others and also help you understand the code faster.
+  % \item \textbf{Showing multiple marks for single Pothole}:
+  % \begin{figure}[h]
+  %   \centering
+  %   \includegraphics[width=5in]{images/inconsistent_comments}
+  %   \caption{Misleading comments}
+  %   \label{inconsistent_comments_fig}
+  % \end{figure}
+\item \textbf{Supporting an app to run on different versions of Android}:
+  Because of rapid development in Android ecosystem, Google frequently releases
+  the new versions of Android tools and libraries. To make our app run on most
+  of the devices we have to update our tools and libraries too, which sometimes
+  break the build process of our application and thus lowering the developer's
+  productivity.
+\item \textbf{Introduction of new permission system for Android Marshmallow and
+    later versions }: Recently Google has introduced a new permission system for
+  Marshmallow (API level 23) and above which asks for user permission at runtime
+  rather than at app installation time. This new permission system has made the
+  user's life easier by giving them the power to selectively grant or deny
+  permission for the use of different system resource. But now developers have
+  to check for permission every time before using system resources (GPS or
+  accelerometer) and this has made the app updation difficult from Android
+  Lollipop(API level 22) to Marshmallow. Now SafeStreeet v2 supports Android
+  platform Marshmallow (API level 23) and above
+\end{enumerate}
 \chapter{Future Work}
 
+\begin{enumerate}
+% \item \textbf{Integrating clustering to eliminate duplicate potholes} : This is
+%   the first thing that has to be done in MTP phase-2.
+
+\item \textbf{Ground testing of SafeStreet v2}: As Phase-1 was mainly focused on
+  anaylsis and implementing features in SafeStreet, we need to do the ground
+  testing in Phase-2 to compare the performance with SafeStreet v1.
+
+\item \textbf{Incentivize user to use our app by building an early warning
+    system} : To build a more robust pothole detection app we need to collect
+  more data. It is very likely that people won't use this app as it is very
+  power demanding. So to make others use this app we can integrate an early
+  warning system which will tell users about the upcoming pothole on their way
+  and also recommend the route based on road condition.
+
+\item \textbf{Automatic detection of repaired potholes} : There should be a
+  mechanism by which we can tell if the potholes that are shown on the map is no
+  longer valid. A simple solution for this problem is to mark potholes as
+  repaired if we are not getting the report for the pothole for a long period of
+  time say 15 days.
 
 
+\item \textbf{Detecting uncalibrated or poor device sensors} : While developing
+  SafeStreet app we haven't taken into the account the fact that not all device
+  have good accelerometer sensor. Older devices may have poor sensors which may
+  lead to false positive/negative pothole dectection. So identifying such
+  devices can be a challenging task. One way to eliminate some calibration error
+  is to ask users to keep their phone stationary for few minutes and then
+  subtracting any offset error if present. Although in practice it would be a
+  difficult task.
 
+\item \textbf{Making app battery efficient} : We all know that higher the rate
+  of GPS location update higher will be the battery drainage. Sadly our app has
+  been configured to receive GPS update at the highest possible rate which will
+  restrict our app usage for long period of time without a power bank.
+ 
+\item \textbf{Doing the scalability testing of SafeStreet}: Now we don't know
+  how many users can our SafeStreet server handle.
 
+\end{enumerate}
+
+% is that if we lower the location update rate then it will add more error to
+% our detected pothole location.
 
 
 \chapter{Conclusion}
-The implication of all this gps analysis is two fold first is now we know that
-how different phones behave for different gps settings. With the help of GPS
-accuracy analysis we found that running making application receive location
-update from network is not required for our application. This made us to take
-the decison of changing location listener from Google Fused API to Android
-location listener which give us control of not receiving location updates from
-network.
+\label{conclusion}
+After doing analysis on GPS accuracy for different phones on different
+  vehicles with different GPS settings it is found that GPS accuracy can be as
+  good as your mobile hardware supports. It is the app developer's
+  responsibility to filter out the bad data.
+
+
+  % The implication of all this GPS analysis is two fold first is now we know
+  % that how phones behave differently with different GPS settings.
+
+  In our experiments, we have used phones from different manufacturers which
+  add more non-uniformity in our analysis. It would be better if we could at
+  least remove this non-uniformity by using the identical phones for GPS
+  analysis.
+
+  If you are developing an app which has stringent accuracy requirements then
+  don't use Google Location API \cite[]{google_location_api} because then you
+  have no control over from which location provider to receive location updates.
+
+% With the help of GPS accuracy analysis we found that configuring application
+% to receive location update from network is not desirable for our application.
+% This made us to take the decison of changing location listener from Google
+% Fused API to Android location listener which give us control of not receiving
+% location updates from network.
+ 
+\bibliographystyle{unsrt}
+\bibliography{references}
 
 \end{document}
-#+ORGTBL: SEND median_accuracy_table orgtbl-to-latex :splice nil :skip 0
-| vehicle type\ gps settings  | gpsonly | gps+internet | gps+internet+network |
-|-----------------------------+---------+--------------+----------------------|
-| scooter/cycle               |    12.3 | no data      |                  9.9 |
-| auto                        |    15.9 | 5.0          |                  6.2 |
-| car                         |    13.6 | no data      |                165.4 |
-| bus                         |    21.6 | 17.0         |                 25.4 |
-| train                       |    24.7 | no data      |                 12.0 |
-| average across all vehicles |    17.6 | 11.0         |                 45.8 |
